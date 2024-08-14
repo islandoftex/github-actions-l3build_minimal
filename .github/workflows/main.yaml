@@ -1,0 +1,74 @@
+name: Automated testing
+
+# Currently we run in two situations:
+on:
+  # 1) Whenever someone pushes to a branch
+  push:
+  # 2) Whenever a pull request is opened, reopened or gets new commits.
+  pull_request:
+  # This implies that for every push to a local branch in the repository for which a pull request is opened runs twice.
+  # Otherwise pull requests form forks would not be included.
+
+# Cancel running builds on push on the same branch or pull request
+concurrency:
+  group: "${{ github.workflow }}-${{ github.head_ref || github.ref }}"
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ${{(matrix.platform == 'Linux' && 'ubuntu-22.04') || (matrix.platform == 'Windows' && 'windows-2022') || (matrix.platform == 'macOS' && 'macos-14')}}
+    strategy:
+      matrix:
+        # We use more redable names here. The enables updating the concrete runners without changing the names
+        platform: [Linux, Windows, macOS]
+    name: "Test suite ${{ matrix.platform }} (plain)"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install TeX Live
+        uses: zauguin/install-texlive@v3
+        with:
+          # The list of packages to install is in a separate file under .github/tl_packages
+          # to allow reuse.
+          package_file: .github/tl_packages
+      - name: Run l3build
+        run: l3build check --show-log-on-error -q -H
+      - name: Archive failed test output
+        if: ${{ always() }}
+        uses: zauguin/l3build-failure-artifacts@v1
+        with:
+          name: testfiles-${{ matrix.platform }}
+          retention-days: 3
+  doc:
+    runs-on: ubuntu-22.04
+    name: Documentation
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install TeX Live
+        uses: zauguin/install-texlive@v3
+        with:
+          package_file: .github/tl_packages
+          cache_version: 0
+      - name: Run l3build
+        run: l3build doc -q -H
+      - name: Archive documentation
+        uses: actions/upload-artifact@v4
+        with:
+          name: Documentation
+          path: "*.pdf"
+          retention-days: 21
+      - name: move pdf
+        run: mkdir -p pdf-output && mv *.pdf pdf-output/.
+      - uses: crazy-max/ghaction-github-pages@v4
+        # only publish pdf from main branch
+        if: github.ref == 'refs/heads/main'
+        with:
+          target_branch: pdf-output
+          build_dir: pdf-output
+          commit_message: Publish PDF Output
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

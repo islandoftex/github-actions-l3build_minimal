@@ -1,0 +1,41 @@
+name: CTAN upload
+
+inputs:
+  filename:
+    required: true
+  package_name: # Has been added to support the reuse of the variable in deploy.yaml
+    required: false
+    default: mypackage
+  dry-run:
+    required: true
+  uploader:
+    required: true
+  email:
+    required: true
+  version:
+    required: false
+    default: ${{ github.ref_name }}
+
+runs:
+  using: composite
+  steps:
+    - name: Send to CTAN
+      uses: zauguin/ctan-upload@v0.1
+      with:
+        package-name: ${{ inputs.package_name }}
+        version: ${{ inputs.version }}
+        author: Some Author # Change to your name
+        uploader: ${{ inputs.uploader }}
+        email: ${{ inputs.email }}
+        license: lppl1.3c # Change if you don't want to use this license
+        summary: An awesome package # Add a short summary
+        ctan-path: /macros/latex/contrib/${{ inputs.package_name }}
+        # support: https://github.com/owner/repo/issues
+        # update: true # Uncomment after the first release
+        # topic: add, appropriate, topics, here
+        description: | # Adjust description
+          A simple example package. Please replace this with a description of your package.
+        filename: ${{ inputs.filename }}
+        dry-run: ${{ inputs.dry-run }}
+        announcement-filename: ctan.ann
+        note: Uploaded automatically by GitHub Actions... authors are unchanged

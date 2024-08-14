@@ -1,0 +1,7 @@
+\input{regression-test}
+\documentclass{article}
+\usepackage{mypackage}
+\begin{document}
+\START
+\typeout{Calculated answer: \TheAnswer}
+\END
